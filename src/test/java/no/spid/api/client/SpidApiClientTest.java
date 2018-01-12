@@ -11,6 +11,7 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.net.URL;
@@ -27,7 +28,9 @@ import org.apache.oltu.oauth2.common.exception.OAuthProblemException;
 import org.apache.oltu.oauth2.common.exception.OAuthSystemException;
 import org.apache.oltu.oauth2.common.message.types.GrantType;
 import org.apache.oltu.oauth2.common.token.BasicOAuthToken;
+import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 
 import no.spid.api.connection.SpidConnectionClientFactory;
@@ -51,6 +54,9 @@ public class SpidApiClientTest {
     private String ACCESS_DENIED_ERROR = "{\"error\":\"expired_token\",\"error_code\":\"401\",\"type\":\"OAuthException\",\"error_description\":\"401 Unauthorized access!\"}";
     private String FLOW_BASE_URL = "https://fooBaseUrl/flow";
     private String FLOW_PARAMS = "?response_type=code&redirect_uri=https%3A%2F%2Ffooserver%2Flogin&client_id=fooClient";
+
+    private static final String TEST_SCOPE = "my_test_scope";
+    private static final String TOKEN_RESOURCE = "my_token_resource";
 
     @Test
     public void getLoginUrl() throws Exception {
@@ -113,7 +119,65 @@ public class SpidApiClientTest {
         assertEquals(Long.valueOf(2419200), token.getExpiresIn());
     }
 
-    @Test
+  @Test
+  public void getServerTokenWithScope() throws Exception {
+    ArgumentCaptor<OAuthClientRequest> argumentCaptor = ArgumentCaptor.forClass(OAuthClientRequest.class);
+
+    // Create a mock http client that gives a fixed response
+    SpidConnectionClientFactory connectionClientFactory = getMockedConnectionClientFactoryWithFixedResponse(
+        SUCCESSFUL_TOKEN_RESPONSE,
+        "application/json",
+        200,
+        OAuthJSONAccessTokenResponse.class);
+
+    SpidApiClient spidClient = new SpidApiClient.ClientBuilder("ID", "SECRET", "SIGNSECRET", "https://redirect.uri", "https://spiddomain.no")
+        .connectionClientFactory(connectionClientFactory)
+        .scope(TEST_SCOPE)
+        .build();
+
+
+    SpidOAuthToken token = spidClient.getServerToken();
+    assertEquals(SpidOAuthTokenType.CLIENT, token.getType());
+    assertEquals(SUCCESSFUL_ACCESS_TOKEN, token.getAccessToken());
+    assertEquals(SUCCESSFUL_REFRESH_TOKEN, token.getRefreshToken());
+    assertEquals(Long.valueOf(2419200), token.getExpiresIn());
+
+    verify(connectionClientFactory.getClient()).execute(argumentCaptor.capture(), anyMapOf(String.class, String.class), anyString(), any(Class.class));
+
+    boolean containsScope = argumentCaptor.getValue().getBody().contains(TEST_SCOPE);
+    Assert.assertTrue(containsScope);
+  }
+
+
+  @Test
+  public void getServerTokenWithTokenResource() throws Exception {
+    ArgumentCaptor<OAuthClientRequest> argumentCaptor = ArgumentCaptor.forClass(OAuthClientRequest.class);
+
+    // Create a mock http client that gives a fixed response
+    SpidConnectionClientFactory connectionClientFactory = getMockedConnectionClientFactoryWithFixedResponse(
+        SUCCESSFUL_TOKEN_RESPONSE,
+        "application/json",
+        200,
+        OAuthJSONAccessTokenResponse.class);
+
+    SpidApiClient spidClient = new SpidApiClient.ClientBuilder("ID", "SECRET", "SIGNSECRET", "https://redirect.uri", "https://spiddomain.no")
+        .connectionClientFactory(connectionClientFactory)
+        .tokenResource(TOKEN_RESOURCE)
+        .build();
+
+    SpidOAuthToken token = spidClient.getServerToken();
+    assertEquals(SpidOAuthTokenType.CLIENT, token.getType());
+    assertEquals(SUCCESSFUL_ACCESS_TOKEN, token.getAccessToken());
+    assertEquals(SUCCESSFUL_REFRESH_TOKEN, token.getRefreshToken());
+    assertEquals(Long.valueOf(2419200), token.getExpiresIn());
+
+    verify(connectionClientFactory.getClient()).execute(argumentCaptor.capture(), anyMapOf(String.class, String.class), anyString(), any(Class.class));
+
+    boolean containsScope = argumentCaptor.getValue().getBody().contains(TOKEN_RESOURCE);
+    Assert.assertTrue(containsScope);
+  }
+
+  @Test
     public void readAndDecryptSignedResponse() throws Exception {
         SpidConnectionClientFactory connectionClientFactory = getMockedConnectionClientFactoryWithFixedResponse(
                 "{\"name\":\"SPP Container\",\"version\":\"0.2\",\"api\":2,\"data\":\"VGhpcyBkYXRhIHdhcyBlbmNyeXB0ZWQh\",\"algorithm\":\"HMAC-SHA256\",\"sig\":\"9epFW_MQKbRUPSmKLY_tShahRxtddL9JY-vGVEOf_IA\"}",
@@ -376,7 +440,7 @@ public class SpidApiClientTest {
         return connectionClientFactory;
     }
 
-    /**
+  /**
      * Utility method to compare two urls. Ignoring order on parameters.
      *
      * @param urlExpected

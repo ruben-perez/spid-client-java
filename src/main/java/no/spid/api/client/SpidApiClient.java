@@ -1,8 +1,6 @@
 package no.spid.api.client;
 
-import java.util.Map;
-import java.util.Optional;
-
+import org.apache.commons.lang3.StringUtils;
 import org.apache.oltu.oauth2.client.OAuthClient;
 import org.apache.oltu.oauth2.client.request.OAuthClientRequest;
 import org.apache.oltu.oauth2.client.response.OAuthJSONAccessTokenResponse;
@@ -11,6 +9,10 @@ import org.apache.oltu.oauth2.common.OAuth;
 import org.apache.oltu.oauth2.common.exception.OAuthProblemException;
 import org.apache.oltu.oauth2.common.exception.OAuthSystemException;
 import org.apache.oltu.oauth2.common.message.types.GrantType;
+import org.json.JSONObject;
+
+import java.util.Map;
+import java.util.Optional;
 
 import no.spid.api.connection.SpidConnectionClientFactory;
 import no.spid.api.connection.SpidUrlConnectionClientFactory;
@@ -20,7 +22,6 @@ import no.spid.api.oauth.SpidOAuthBearerClientRequest;
 import no.spid.api.oauth.SpidOAuthToken;
 import no.spid.api.oauth.SpidOAuthTokenType;
 import no.spid.api.security.SpidSecurityHelper;
-import org.json.JSONObject;
 
 /**
  * The SpidApiClient can be used to login users and get their user tokens, get server tokens. When a token is acquired the client can be used to consume the services of the SPiD
@@ -45,6 +46,9 @@ public class SpidApiClient {
     private boolean autorenew;
     private boolean autoDecryptSignedResponses;
 
+    private String scope;
+    private String tokenResource;
+
     /**
      * Constructor is private, create instances using the ClientBuilder.
      *
@@ -63,6 +67,8 @@ public class SpidApiClient {
         spidAPIBaseUrl = spidBaseUrl + "/api/2";
         spidTokenUrl = spidBaseUrl + "/oauth/token";
         spidFlowUrl = spidBaseUrl + "/flow/";
+        scope = builder.scope;
+        tokenResource = builder.tokenResource;
 
         securityHelper = builder.securityHelper;
         connectionClientFactory = builder.connectionClientFactory;
@@ -270,16 +276,25 @@ public class SpidApiClient {
         OAuthJSONAccessTokenResponse oAuthResponse;
 
         try {
-            OAuthClientRequest request = OAuthClientRequest
-                    .tokenLocation(spidTokenUrl)
-                    .setClientId(clientId)
-                    .setClientSecret(clientSecret)
-                    .setGrantType(GrantType.CLIENT_CREDENTIALS)
-                    .setRedirectURI(redirectUrl)
-                    .buildBodyMessage();
+          OAuthClientRequest.TokenRequestBuilder tokenRequestBuilder = OAuthClientRequest
+              .tokenLocation(spidTokenUrl)
+              .setClientId(clientId)
+              .setClientSecret(clientSecret)
+              .setGrantType(GrantType.CLIENT_CREDENTIALS)
+              .setRedirectURI(redirectUrl);
 
-            OAuthClient oAuthClient = new OAuthClient(connectionClientFactory.getClient());
-            oAuthResponse = oAuthClient.accessToken(request);
+          if (StringUtils.isNotEmpty(scope)) {
+            tokenRequestBuilder.setScope(scope);
+          }
+
+          if (StringUtils.isNotEmpty(tokenResource)) {
+            tokenRequestBuilder.setParameter("resource", tokenResource);
+          }
+
+          OAuthClientRequest request = tokenRequestBuilder.buildBodyMessage();
+
+          OAuthClient oAuthClient = new OAuthClient(connectionClientFactory.getClient());
+          oAuthResponse = oAuthClient.accessToken(request);
 
         } catch (OAuthSystemException e) {
             throw new SpidOAuthException(e);
@@ -446,6 +461,9 @@ public class SpidApiClient {
         private boolean autorenew = true;
         private boolean autoDecryptSignedResponses = true;
 
+        private String scope;
+        private String tokenResource;
+
         public ClientBuilder(String clientId, String clientSecret, String clientSignatureSecret, String redirectUrl, String spidBaseUrl) {
             this.clientId = clientId;
             this.clientSecret = clientSecret;
@@ -476,6 +494,16 @@ public class SpidApiClient {
         public ClientBuilder connectionClientFactory(SpidConnectionClientFactory connectionClientFactory) {
             this.connectionClientFactory = connectionClientFactory;
             return this;
+        }
+
+        public ClientBuilder scope(String scope) {
+          this.scope = scope;
+          return this;
+        }
+
+        public ClientBuilder tokenResource(String tokenResource) {
+          this.tokenResource = tokenResource;
+          return this;
         }
 
         public SpidApiClient build() {
