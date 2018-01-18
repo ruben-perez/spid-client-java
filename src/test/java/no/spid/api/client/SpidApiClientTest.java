@@ -1,5 +1,7 @@
 package no.spid.api.client;
 
+import com.google.common.base.Optional;
+
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -15,7 +17,6 @@ import static org.mockito.Mockito.when;
 
 import java.net.URL;
 import java.util.Arrays;
-import java.util.Optional;
 
 import org.apache.oltu.oauth2.client.HttpClient;
 import org.apache.oltu.oauth2.client.request.OAuthClientRequest;
@@ -245,7 +246,7 @@ public class SpidApiClientTest {
         assertEquals(SUCCESSFUL_ACCESS_TOKEN, token.getAccessToken());
         assertEquals(SUCCESSFUL_REFRESH_TOKEN, token.getRefreshToken());
         assertEquals(Long.valueOf(2419200), token.getExpiresIn());
-        assertEquals(token.getUserId(), Optional.empty());
+        assertEquals(token.getUserId(), Optional.absent());
     }
 
     /** END OF TESTS **/

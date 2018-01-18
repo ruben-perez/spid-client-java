@@ -1,6 +1,7 @@
 package no.spid.api.oauth;
 
-import java.util.Optional;
+
+import com.google.common.base.Optional;
 
 import org.apache.oltu.oauth2.common.token.OAuthToken;
 
@@ -14,7 +15,7 @@ public class SpidOAuthToken {
     private Long expiresIn;
     private Long expiresAt;
     private SpidOAuthTokenType type;
-    private Optional<String> userId = Optional.empty();
+    private Optional<String> userId = Optional.absent();
 
     public SpidOAuthToken(OAuthToken basicToken, SpidOAuthTokenType type, Optional<String> userId) {
         this(basicToken, type, System.currentTimeMillis() + basicToken.getExpiresIn() * 1000);

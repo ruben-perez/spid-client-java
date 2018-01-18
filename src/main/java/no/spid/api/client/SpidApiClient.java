@@ -1,7 +1,8 @@
 package no.spid.api.client;
 
+import com.google.common.base.Optional;
+
 import java.util.Map;
-import java.util.Optional;
 
 import org.apache.oltu.oauth2.client.OAuthClient;
 import org.apache.oltu.oauth2.client.request.OAuthClientRequest;
@@ -426,7 +427,7 @@ public class SpidApiClient {
     private Optional<String> getUserId(OAuthJSONAccessTokenResponse response) {
         JSONObject jsonBody = new JSONObject(response.getBody());
         String optString = jsonBody.optString("user_id");
-        return optString.equals("false") || optString.equals("") ? Optional.<String>empty() : Optional.of(jsonBody.getString("user_id"));
+        return optString.equals("false") || optString.equals("") ? Optional.<String>absent() : Optional.of(jsonBody.getString("user_id"));
     }
 
     /**
